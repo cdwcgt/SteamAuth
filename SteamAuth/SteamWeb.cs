@@ -23,7 +23,7 @@ namespace SteamAuth
 
         public static string Request(string url, string method, NameValueCollection data = null, CookieContainer cookies = null, NameValueCollection headers = null, string referer = APIEndpoints.COMMUNITY_BASE)
         {
-            string query = (data == null ? string.Empty : string.Join("&", Array.ConvertAll(data.AllKeys, key => String.Format("{0}={1}", WebUtility.UrlEncode(key), WebUtility.UrlEncode(data[key])))));
+            string query = (data == null ? string.Empty : string.Join("&", Array.ConvertAll(data.AllKeys, key => string.Format("{0}={1}", WebUtility.UrlEncode(key), WebUtility.UrlEncode(data[key])))));
             if (method == "GET")
             {
                 url += (url.Contains("?") ? "&" : "?") + query;
@@ -67,7 +67,7 @@ namespace SteamAuth
                 {
                     if (response.StatusCode != HttpStatusCode.OK)
                     {
-                        HandleFailedWebRequestResponse(response, url);
+                        handleFailedWebRequestResponse(response, url);
                         return null;
                     }
 
@@ -80,14 +80,14 @@ namespace SteamAuth
             }
             catch (WebException e)
             {
-                HandleFailedWebRequestResponse(e.Response as HttpWebResponse, url);
+                handleFailedWebRequestResponse(e.Response as HttpWebResponse, url);
                 return null;
             }
         }
 
         public static async Task<string> RequestAsync(string url, string method, NameValueCollection data = null, CookieContainer cookies = null, NameValueCollection headers = null, string referer = APIEndpoints.COMMUNITY_BASE)
         {
-            string query = (data == null ? string.Empty : string.Join("&", Array.ConvertAll(data.AllKeys, key => String.Format("{0}={1}", WebUtility.UrlEncode(key), WebUtility.UrlEncode(data[key])))));
+            string query = (data == null ? string.Empty : string.Join("&", Array.ConvertAll(data.AllKeys, key => string.Format("{0}={1}", WebUtility.UrlEncode(key), WebUtility.UrlEncode(data[key])))));
             if (method == "GET")
             {
                 url += (url.Contains("?") ? "&" : "?") + query;
@@ -126,7 +126,7 @@ namespace SteamAuth
 
                 if (response.StatusCode != HttpStatusCode.OK)
                 {
-                    HandleFailedWebRequestResponse(response, url);
+                    handleFailedWebRequestResponse(response, url);
                     return null;
                 }
 
@@ -138,7 +138,7 @@ namespace SteamAuth
             }
             catch (WebException e)
             {
-                HandleFailedWebRequestResponse(e.Response as HttpWebResponse, url);
+                handleFailedWebRequestResponse(e.Response as HttpWebResponse, url);
                 return null;
             }
         }
@@ -146,19 +146,19 @@ namespace SteamAuth
         /// <summary>
         /// Raise exceptions relevant to this HttpWebResponse -- EG, to signal that our oauth token has expired.
         /// </summary>
-        private static void HandleFailedWebRequestResponse(HttpWebResponse response, string requestURL)
+        private static void handleFailedWebRequestResponse(HttpWebResponse response, string requestURL)
         {
             if (response == null) return;
 
             //Redirecting -- likely to a steammobile:// URI
             if (response.StatusCode == HttpStatusCode.Found)
             {
-                var location = response.Headers.Get("Location");
+                string location = response.Headers.Get("Location");
                 if (!string.IsNullOrEmpty(location))
                 {
                     //Our OAuth token has expired. This is given both when we must refresh our session, or the entire OAuth Token cannot be refreshed anymore.
                     //Thus, we should only throw this exception when we're attempting to refresh our session.
-                    if (location == "steammobile://lostauth" && requestURL == APIEndpoints.MOBILEAUTH_GETWGTOKEN)
+                    if (location == "steammobile://lostauth" && requestURL == APIEndpoints.MOBILEAUTH_GETWGTOKEN())
                     {
                         throw new SteamGuardAccount.WGTokenExpiredException();
                     }

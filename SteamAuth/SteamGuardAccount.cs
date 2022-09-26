@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Net;
@@ -7,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace SteamAuth
 {
@@ -57,11 +57,13 @@ namespace SteamAuth
 
         public bool DeactivateAuthenticator(int scheme = 2)
         {
-            var postData = new NameValueCollection();
-            postData.Add("steamid", this.Session.SteamID.ToString());
-            postData.Add("steamguard_scheme", scheme.ToString());
-            postData.Add("revocation_code", this.RevocationCode);
-            postData.Add("access_token", this.Session.OAuthToken);
+            var postData = new NameValueCollection
+            {
+                { "steamid", Session.SteamID.ToString() },
+                { "steamguard_scheme", scheme.ToString() },
+                { "revocation_code", RevocationCode },
+                { "access_token", Session.OAuthToken }
+            };
 
             try
             {
@@ -84,12 +86,12 @@ namespace SteamAuth
 
         public string GenerateSteamGuardCodeForTime(long time)
         {
-            if (this.SharedSecret == null || this.SharedSecret.Length == 0)
+            if (SharedSecret == null || SharedSecret.Length == 0)
             {
                 return "";
             }
 
-            string sharedSecretUnescaped = Regex.Unescape(this.SharedSecret);
+            string sharedSecretUnescaped = Regex.Unescape(SharedSecret);
             byte[] sharedSecretArray = Convert.FromBase64String(sharedSecretUnescaped);
             byte[] timeArray = new byte[8];
 
@@ -101,8 +103,10 @@ namespace SteamAuth
                 time >>= 8;
             }
 
-            HMACSHA1 hmacGenerator = new HMACSHA1();
-            hmacGenerator.Key = sharedSecretArray;
+            HMACSHA1 hmacGenerator = new HMACSHA1
+            {
+                Key = sharedSecretArray
+            };
             byte[] hashedData = hmacGenerator.ComputeHash(timeArray);
             byte[] codeArray = new byte[5];
             try
@@ -125,27 +129,27 @@ namespace SteamAuth
 
         public Confirmation[] FetchConfirmations()
         {
-            string url = this.GenerateConfirmationURL();
+            string url = GenerateConfirmationURL();
 
             CookieContainer cookies = new CookieContainer();
-            this.Session.AddCookies(cookies);
+            Session.AddCookies(cookies);
 
             string response = SteamWeb.Request(url, "GET", "", cookies);
-            return FetchConfirmationInternal(response);
+            return fetchConfirmationInternal(response);
         }
 
         public async Task<Confirmation[]> FetchConfirmationsAsync()
         {
-            string url = this.GenerateConfirmationURL();
+            string url = GenerateConfirmationURL();
 
             CookieContainer cookies = new CookieContainer();
-            this.Session.AddCookies(cookies);
+            Session.AddCookies(cookies);
 
             string response = await SteamWeb.RequestAsync(url, "GET", null, cookies);
-            return FetchConfirmationInternal(response);
+            return fetchConfirmationInternal(response);
         }
 
-        private Confirmation[] FetchConfirmationInternal(string response)
+        private Confirmation[] fetchConfirmationInternal(string response)
         {
 
             /*So you're going to see this abomination and you're going to be upset.
@@ -201,22 +205,22 @@ namespace SteamAuth
 
         public bool AcceptMultipleConfirmations(Confirmation[] confs)
         {
-            return _sendMultiConfirmationAjax(confs, "allow");
+            return sendMultiConfirmationAjax(confs, "allow");
         }
 
         public bool DenyMultipleConfirmations(Confirmation[] confs)
         {
-            return _sendMultiConfirmationAjax(confs, "cancel");
+            return sendMultiConfirmationAjax(confs, "cancel");
         }
 
         public bool AcceptConfirmation(Confirmation conf)
         {
-            return _sendConfirmationAjax(conf, "allow");
+            return sendConfirmationAjax(conf, "allow");
         }
 
         public bool DenyConfirmation(Confirmation conf)
         {
-            return _sendConfirmationAjax(conf, "cancel");
+            return sendConfirmationAjax(conf, "cancel");
         }
 
         /// <summary>
@@ -225,11 +229,13 @@ namespace SteamAuth
         /// <returns></returns>
         public bool RefreshSession()
         {
-            string url = APIEndpoints.MOBILEAUTH_GETWGTOKEN;
-            NameValueCollection postData = new NameValueCollection();
-            postData.Add("access_token", this.Session.OAuthToken);
+            string url = APIEndpoints.MOBILEAUTH_GETWGTOKEN();
+            NameValueCollection postData = new NameValueCollection
+            {
+                { "access_token", Session.OAuthToken }
+            };
 
-            string response = null;
+            string response;
             try
             {
                 response = SteamWeb.Request(url, "POST", postData);
@@ -244,14 +250,14 @@ namespace SteamAuth
             try
             {
                 var refreshResponse = JsonConvert.DeserializeObject<RefreshSessionDataResponse>(response);
-                if (refreshResponse == null || refreshResponse.Response == null || String.IsNullOrEmpty(refreshResponse.Response.Token))
+                if (refreshResponse == null || refreshResponse.Response == null || string.IsNullOrEmpty(refreshResponse.Response.Token))
                     return false;
 
-                string token = this.Session.SteamID + "%7C%7C" + refreshResponse.Response.Token;
-                string tokenSecure = this.Session.SteamID + "%7C%7C" + refreshResponse.Response.TokenSecure;
+                string token = Session.SteamID + "%7C%7C" + refreshResponse.Response.Token;
+                string tokenSecure = Session.SteamID + "%7C%7C" + refreshResponse.Response.TokenSecure;
 
-                this.Session.SteamLogin = token;
-                this.Session.SteamLoginSecure = tokenSecure;
+                Session.SteamLogin = token;
+                Session.SteamLoginSecure = tokenSecure;
                 return true;
             }
             catch (Exception)
@@ -266,11 +272,13 @@ namespace SteamAuth
         /// <returns></returns>
         public async Task<bool> RefreshSessionAsync()
         {
-            string url = APIEndpoints.MOBILEAUTH_GETWGTOKEN;
-            NameValueCollection postData = new NameValueCollection();
-            postData.Add("access_token", this.Session.OAuthToken);
+            string url = APIEndpoints.MOBILEAUTH_GETWGTOKEN();
+            NameValueCollection postData = new NameValueCollection
+            {
+                { "access_token", Session.OAuthToken }
+            };
 
-            string response = null;
+            string response;
             try
             {
                 response = await SteamWeb.RequestAsync(url, "POST", postData);
@@ -285,14 +293,14 @@ namespace SteamAuth
             try
             {
                 var refreshResponse = JsonConvert.DeserializeObject<RefreshSessionDataResponse>(response);
-                if (refreshResponse == null || refreshResponse.Response == null || String.IsNullOrEmpty(refreshResponse.Response.Token))
+                if (refreshResponse == null || refreshResponse.Response == null || string.IsNullOrEmpty(refreshResponse.Response.Token))
                     return false;
 
-                string token = this.Session.SteamID + "%7C%7C" + refreshResponse.Response.Token;
-                string tokenSecure = this.Session.SteamID + "%7C%7C" + refreshResponse.Response.TokenSecure;
+                string token = Session.SteamID + "%7C%7C" + refreshResponse.Response.Token;
+                string tokenSecure = Session.SteamID + "%7C%7C" + refreshResponse.Response.TokenSecure;
 
-                this.Session.SteamLogin = token;
-                this.Session.SteamLoginSecure = tokenSecure;
+                Session.SteamLogin = token;
+                Session.SteamLoginSecure = tokenSecure;
                 return true;
             }
             catch (Exception)
@@ -301,25 +309,25 @@ namespace SteamAuth
             }
         }
 
-        private ConfirmationDetailsResponse _getConfirmationDetails(Confirmation conf)
+        private ConfirmationDetailsResponse getConfirmationDetails(Confirmation conf)
         {
             string url = APIEndpoints.COMMUNITY_BASE + "/mobileconf/details/" + conf.ID + "?";
             string queryString = GenerateConfirmationQueryParams("details");
             url += queryString;
 
             CookieContainer cookies = new CookieContainer();
-            this.Session.AddCookies(cookies);
-            string referer = GenerateConfirmationURL();
+            Session.AddCookies(cookies);
+            //string referer = GenerateConfirmationURL();   不需要赋值
 
             string response = SteamWeb.Request(url, "GET", "", cookies, null);
-            if (String.IsNullOrEmpty(response)) return null;
+            if (string.IsNullOrEmpty(response)) return null;
 
             var confResponse = JsonConvert.DeserializeObject<ConfirmationDetailsResponse>(response);
             if (confResponse == null) return null;
             return confResponse;
         }
 
-        private bool _sendConfirmationAjax(Confirmation conf, string op)
+        private bool sendConfirmationAjax(Confirmation conf, string op)
         {
             string url = APIEndpoints.COMMUNITY_BASE + "/mobileconf/ajaxop";
             string queryString = "?op=" + op + "&";
@@ -328,8 +336,8 @@ namespace SteamAuth
             url += queryString;
 
             CookieContainer cookies = new CookieContainer();
-            this.Session.AddCookies(cookies);
-            string referer = GenerateConfirmationURL();
+            Session.AddCookies(cookies);
+            //string referer = GenerateConfirmationURL();   不需要赋值
 
             string response = SteamWeb.Request(url, "GET", "", cookies, null);
             if (response == null) return false;
@@ -338,7 +346,7 @@ namespace SteamAuth
             return confResponse.Success;
         }
 
-        private bool _sendMultiConfirmationAjax(Confirmation[] confs, string op)
+        private bool sendMultiConfirmationAjax(Confirmation[] confs, string op)
         {
             string url = APIEndpoints.COMMUNITY_BASE + "/mobileconf/multiajaxop";
 
@@ -349,8 +357,8 @@ namespace SteamAuth
             }
 
             CookieContainer cookies = new CookieContainer();
-            this.Session.AddCookies(cookies);
-            string referer = GenerateConfirmationURL();
+            Session.AddCookies(cookies);
+            //string referer = GenerateConfirmationURL();   不需要赋值
 
             string response = SteamWeb.Request(url, "POST", query, cookies, null);
             if (response == null) return false;
@@ -368,7 +376,7 @@ namespace SteamAuth
 
         public string GenerateConfirmationQueryParams(string tag)
         {
-            if (String.IsNullOrEmpty(DeviceID))
+            if (string.IsNullOrEmpty(DeviceID))
                 throw new ArgumentException("Device ID is not present");
 
             var queryParams = GenerateConfirmationQueryParamsAsNVC(tag);
@@ -378,25 +386,27 @@ namespace SteamAuth
 
         public NameValueCollection GenerateConfirmationQueryParamsAsNVC(string tag)
         {
-            if (String.IsNullOrEmpty(DeviceID))
+            if (string.IsNullOrEmpty(DeviceID))
                 throw new ArgumentException("Device ID is not present");
 
             long time = TimeAligner.GetSteamTime();
 
-            var ret = new NameValueCollection();
-            ret.Add("p", this.DeviceID);
-            ret.Add("a", this.Session.SteamID.ToString());
-            ret.Add("k", _generateConfirmationHashForTime(time, tag));
-            ret.Add("t", time.ToString());
-            ret.Add("m", "android");
-            ret.Add("tag", tag);
+            var ret = new NameValueCollection
+            {
+                { "p", DeviceID },
+                { "a", Session.SteamID.ToString() },
+                { "k", generateConfirmationHashForTime(time, tag) },
+                { "t", time.ToString() },
+                { "m", "android" },
+                { "tag", tag }
+            };
 
             return ret;
         }
 
-        private string _generateConfirmationHashForTime(long time, string tag)
+        private string generateConfirmationHashForTime(long time, string tag)
         {
-            byte[] decode = Convert.FromBase64String(this.IdentitySecret);
+            byte[] decode = Convert.FromBase64String(IdentitySecret);
             int n2 = 8;
             if (tag != null)
             {
@@ -429,8 +439,10 @@ namespace SteamAuth
 
             try
             {
-                HMACSHA1 hmacGenerator = new HMACSHA1();
-                hmacGenerator.Key = decode;
+                HMACSHA1 hmacGenerator = new HMACSHA1
+                {
+                    Key = decode
+                };
                 byte[] hashedData = hmacGenerator.ComputeHash(array);
                 string encodedData = Convert.ToBase64String(hashedData, Base64FormattingOptions.None);
                 string hash = WebUtility.UrlEncode(encodedData);
